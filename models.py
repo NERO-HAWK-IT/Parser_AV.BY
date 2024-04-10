@@ -2,6 +2,17 @@ from dataclasses import dataclass, field, fields
 
 
 @dataclass(slots=True)
+class Brand:
+    car_brand: str = field(default='')  # Марка автомобиля
+
+
+@dataclass(slots=True)
+class Brand_model:
+    car_model: str = field(default='')  # Марка автомобиля
+    brand_id: int = field(default=0)
+
+
+@dataclass(slots=True)
 class Car_data:
     # Общее
     url: str = field(default='')
@@ -16,11 +27,11 @@ class Car_data:
     description: str = field(default='')  # Описание лота
     price_byn: int = field(default=0)  # Стоимость руб
     price_usd: int = field(default=0)  # Стоимость usd
-    sellerName: str = field(default='')  # Имя продавца
+    sellername: str = field(default='', metadata={'name': 'sellerName'})  # Имя продавца
     exchange: str = field(default='')  # Намерения продавца по обмену
-    publishedAt: str = field(default='')  # Дата публикации
-    refreshedAt: str = field(default='')  # Дата обновления
-    photo: list = field(default_factory=list)  # Список ссылок на фотографии лота
+    publishedAt: str = field(default='', metadata={'name': 'publishedAt'})  # Дата публикации
+    refreshedAt: str = field(default='', metadata={'name': 'refreshedAt'})  # Дата обновления
+
     vin: str = field(default='')  # VIN номер автомобиля
 
     # Технические характеристики
@@ -32,16 +43,16 @@ class Car_data:
     height: str = field(default='')  # Высота
 
     # Кузов
-    bodyType: str = field(default='')  # Тип кузова
-    numberOfSeats: str = field(default='')  # Количество мест
+    bodyType: str = field(default='', metadata={'name': 'bodyType'})  # Тип кузова
+    numberOfSeats: str = field(default='', metadata={'name': 'numberOfSeats'})  # Количество мест
     wheelbase: str = field(default='')  # Колесная база
-    curbWeight: str = field(default='')  # Снаряженная масса
-    groundClearance: str = field(default='')  # Дорожный просвет
-    maxTrunkCapacity: str = field(default='')  # Объем багажника максимальный
-    minTrunkCapacity: str = field(default='')  # Объем багажника минимальный
-    fullWeight: str = field(default='')  # Полная масса
-    frontTrackWidth: str = field(default='')  # Ширина передней колеи
-    backTrackWidth: str = field(default='')  # Ширина задней колеи
+    curbWeight: str = field(default='', metadata={'name': 'curbWeight'})  # Снаряженная масса
+    groundClearance: str = field(default='', metadata={'name': 'groundClearance'})  # Дорожный просвет
+    maxTrunkCapacity: str = field(default='', metadata={'name': 'maxTrunkCapacity'})  # Объем багажника максимальный
+    minTrunkCapacity: str = field(default='', metadata={'name': 'minTrunkCapacity'})  # Объем багажника минимальный
+    fullWeight: str = field(default='', metadata={'name': 'fullWeight'})  # Полная масса
+    frontTrackWidth: str = field(default='', metadata={'name': 'frontTrackWidth'})  # Ширина передней колеи
+    backTrackWidth: str = field(default='', metadata={'name': 'backTrackWidth'})  # Ширина задней колеи
 
     # Двигатель
     engineType: str = field(default='')  # Тип двигателя
@@ -90,5 +101,8 @@ class Car_data:
     backSuspension: str = field(default='')  # Задняя подвеска
     frontBrakes: str = field(default='')  # Передние тормоза
     rearBrakes: str = field(default='')  # Задние тормоза
+
+    # Фотографии авто
+    photo: list = field(default_factory=list)  # Список ссылок на фотографии лота
 
 # print([el.name for el in fields(Car_data)])

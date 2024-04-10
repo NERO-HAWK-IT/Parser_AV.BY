@@ -72,7 +72,7 @@ class DB_Postgres:
         except (Exception, psycopg2.Error) as error:
             self.__error(error)
 
-    def update_query(self, query: str, data: [tuple | list] = None, many=False, message='OK'):
+    def update_query(self, query: str,  data: [tuple | list] = None, many=False, message='OK'):
         """
         Функция для обновления данных в БД.
         :param query: запрос
