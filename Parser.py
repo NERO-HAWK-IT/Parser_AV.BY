@@ -28,9 +28,10 @@ class Parser_car:
 
     DB = DB_Postgres(db_name, db_user, db_password, db_host, db_port)
 
-    def retry_function(self, function, max_attempts, *args, **kwargs):
+    @classmethod
+    def retry_function(cls, function, max_attempts, *args, **kwargs):
         """
-        Функция повторного вызова функции max_attempts раз, если не успешно то взвращает None
+        Функция повторного вызова функции max_attempts раз, если не успешно то возвращает None
         После вызова настоящей функции необходимо прописать обработку на случай результата None
         :param function: вызываемая функция
         :param max_attempts: количество раз вызова функции
@@ -61,7 +62,8 @@ class Parser_car:
 
         return soup
 
-    def get_json(self, soup: BeautifulSoup):
+    @classmethod
+    def get_json(cls, soup: BeautifulSoup):
         """
         Функция поучения NEXT_DATA в формате json
         :param soup: СУП страницы
@@ -169,8 +171,27 @@ class Parser_car:
 
         return links
 
+    @classmethod
+    def Error_handling(cls, data, keys):
+        """
+        Функция обраобтки оштбки при отсутствии искомого поля
+        :param data: Json файл страницы __NEXT_DATA__
+        :param keys: Ключи искомого параметра в файле Json
+        :return: значение искомого поля
+        """
+        try:
+            for key in keys:
+                data = data[key]
+            return data
+        except KeyError:
+            return None
+
     def __get_data(self, link: str) -> Car_data:
-        # print('\n', link)
+        """
+        Функция получения данных (всех его характеристик) с сайта по автомобилю
+        :param link: ссылка на страницу объеявления автомобиля
+        :return: возвращает экземпляр датакласса Car
+        """
         data = ''
         at = 1
         while at <= 3:
@@ -185,60 +206,44 @@ class Parser_car:
 
         # Общее
         car.car_id = data['props']['initialState']['advert']['advert']['id']  # id лота
+        print(type(data['props']['initialState']['advert']['advert']['id']))
         car.brand = [el['value'] for el in data['props']['initialState']['advert']['advert']['properties'] if
                      el['name'] == 'brand'][0]  # Марка автомобиля
         car.model = [el['value'] for el in data['props']['initialState']['advert']['advert']['properties'] if
                      el['name'] == 'model'][0]  # Модель автомобиля
-        try:
-            car.model_2 = [el['value'] for el in data['props']['initialState']['advert']['advert']['properties'] if
-                           el['name'] == 'generation'][0]  # Модельный ряд
-        except Exception:
-            car.model_2 = ''
-        try:
-            car.mileage = [el['value'] for el in data['props']['initialState']['advert']['advert']['properties'] if
-                           el['name'] == 'mileage_km'][0]  # Пробег автомобиля
-        except Exception:
-            car.mileage = -1
-        try:
-            car.year = data['props']['initialState']['advert']['advert']['year']  # Год выпуска
-        except Exception:
-            car.year = -1
-        try:
-            car.location = data['props']['initialState']['advert']['advert']['locationName']  # Местоположение
-        except Exception:
-            car.location = ''
-        try:
-            car.title = data['props']['initialState']['landing']['seo']['metaInfo']['h1']  # Наименование лота
-        except Exception:
-            car.title = ''
-        try:
-            car.description = data['props']['initialState']['landing']['seo']['metaInfo'][
-                'ogDescription']  # Описание лота
-        except Exception:
-            car.description = ''
-        car.price_byn = data['props']['initialState']['advert']['advert']['price']['byn']['amount']  # Стоимость руб
-        try:
-            car.price_usd = data['props']['initialState']['advert']['advert']['price']['usd']['amount']  # Стоимость usd
-        except Exception:
-            car.price_usd = 0
-        try:
-            car.sellername = data['props']['initialState']['advert']['advert']['sellerName']  # Имя продавца
-        except Exception:
-            car.sellername = ''
-        car.exchange = data['props']['initialState']['advert']['advert']['exchange'][
-            'label']  # Намерия продавца по обмену
+        car.model_2 = \
+            [el['value'] for el in
+             self.Error_handling(data, ['props', 'initialState', 'advert', 'advert', 'properties']) if
+             el['name'] == 'generation'][0]  # Модельный ряд
+        car.mileage = \
+            [el['value'] for el in
+             self.Error_handling(data, ['props', 'initialState', 'advert', 'advert', 'properties']) if
+             el['name'] == 'mileage_km'][0]  # Пробег автомобиля
+        car.year = self.Error_handling(data, ['props', 'initialState', 'advert', 'advert', 'year'])  # Год выпуска
+        car.location = self.Error_handling(data, ['props', 'initialState', 'advert', 'advert',
+                                                  'locationName'])  # Местоположение
+        car.title = self.Error_handling(data, ['props', 'initialState', 'landing', 'seo', 'metaInfo',
+                                               'h1'])  # Наименование лота
+        car.description = self.Error_handling(data, ['props', 'initialState', 'landing', 'seo', 'metaInfo',
+                                                     'ogDescription'])  # Описание лота
+        car.price_byn = self.Error_handling(data, ['props', 'initialState', 'advert', 'advert', 'price', 'byn',
+                                                   'amount'])  # Стоимость руб
+        car.price_usd = self.Error_handling(data, ['props', 'initialState', 'advert', 'advert', 'price', 'usd',
+                                                   'amount'])  # Стоимость usd
+        car.sellername = self.Error_handling(data, ['props', 'initialState', 'advert', 'advert',
+                                                    'sellerName'])  # Имя продавца
+        car.exchange = self.Error_handling(data, ['props', 'initialState', 'advert', 'advert', 'exchange',
+                                                  'label'])  # Намерия продавца по обмену
         car.publishedAt = data['props']['initialState']['advert']['advert']['publishedAt']  # Дата публикации
         car.refreshedAt = data['props']['initialState']['advert']['advert']['refreshedAt']  # Дата обновления
-        try:
-            car.vin = data['props']['initialState']['advert']['advert']['metadata']['vinInfo'][
-                'vin']  # VIN номер автомобиля
-        except Exception:
-            car.vin = ''
+        car.vin = self.Error_handling(data, ['props', 'initialState', 'advert', 'advert', 'metadata', 'vinInfo',
+                                             'vin'])  # VIN номер автомобиля
+
         car.photo = [el['medium']['url'] for el in
                      data['props']['initialState']['advert']['advert']['photos']]  # Список ссылок на фотографии лота
 
         # Технические характеристики
-        try:
+        try:  # Делаем проверку наличие страницы с характеристиками автомобиля
             car.url_specifications = data['props']['initialState']['catalog']['advertModifications'][
                 'url']  # Ссылка на технические характеристики
             print(car.url_specifications)
@@ -247,273 +252,519 @@ class Parser_car:
             data_specifications = json.loads(json_data_specifications)
 
             # Габариты
-            try:
-                car.length = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'length']  # Длина
-            except Exception:
-                car.length = ''
-            try:
-                car.width = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'width']  # Ширина
-            except Exception:
-                car.width = ''
-            try:
-                car.height = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'height']  # Высота
-            except Exception:
-                car.height = ''
+            car.length = self.Error_handling(data_specifications,
+                                             ['props', 'initialState', 'catalog', 'modificationCard',
+                                              'length'])  # Длина
+            car.width = self.Error_handling(data_specifications,
+                                            ['props', 'initialState', 'catalog', 'modificationCard', 'width'])  # Ширина
+            car.height = self.Error_handling(data_specifications,
+                                             ['props', 'initialState', 'catalog', 'modificationCard',
+                                              'height'])  # Высота
 
             # Кузов
-            try:
-                car.bodyType = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'bodyType']  # Тип кузова
-            except Exception:
-                car.bodyType = ''
-            try:
-                car.numberOfSeats = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'numberOfSeats']  # Количество мест
-            except Exception:
-                car.numberOfSeats = ''
-            try:
-                car.wheelbase = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'wheelbase']  # Колесная база
-            except Exception:
-                car.wheelbase = ''
-            try:
-                car.curbWeight = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'curbWeight']  # Снаряженная масса
-            except Exception:
-                car.curbWeight = ''
-            try:
-                car.groundClearance = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'groundClearance']  # Дорожный просвет
-            except Exception:
-                car.groundClearance = ''
-            try:
-                car.maxTrunkCapacity = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'maxTrunkCapacity']  # Объем багажника максимальный
-            except Exception:
-                car.maxTrunkCapacity = ''
-            try:
-                car.minTrunkCapacity = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'minTrunkCapacity']  # Объем багажника минимальный
-            except Exception:
-                car.minTrunkCapacity = ''
-            try:
-                car.fullWeight = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'fullWeight']  # Полная масса
-            except Exception:
-                car.fullWeight = ''
-            try:
-                car.frontTrackWidth = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'frontTrackWidth']  # Ширина передней колеи
-            except Exception:
-                car.frontTrackWidth = ''
-            try:
-                car.backTrackWidth = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'backTrackWidth']  # Ширина задней колеи
-            except Exception:
-                car.backTrackWidth = ''
+            car.bodyType = self.Error_handling(data_specifications,
+                                               ['props', 'initialState', 'catalog', 'modificationCard',
+                                                'bodyType'])  # Тип кузова
+            car.numberOfSeats = self.Error_handling(data_specifications,
+                                                    ['props', 'initialState', 'catalog', 'modificationCard',
+                                                     'numberOfSeats'])  # Количество мест
+            car.wheelbase = self.Error_handling(data_specifications,
+                                                ['props', 'initialState', 'catalog', 'modificationCard',
+                                                 'wheelbase'])  # Колесная база
+            car.curbWeight = self.Error_handling(data_specifications,
+                                                 ['props', 'initialState', 'catalog', 'modificationCard',
+                                                  'curbWeight'])  # Снаряженная масса
+            car.groundClearance = self.Error_handling(data_specifications,
+                                                      ['props', 'initialState', 'catalog', 'modificationCard',
+                                                       'groundClearance'])  # Дорожный просвет
+            car.maxTrunkCapacity = self.Error_handling(data_specifications,
+                                                       ['props', 'initialState', 'catalog', 'modificationCard',
+                                                        'maxTrunkCapacity'])  # Объем багажника максимальный
+            car.minTrunkCapacity = self.Error_handling(data_specifications,
+                                                       ['props', 'initialState', 'catalog', 'modificationCard',
+                                                        'minTrunkCapacity'])  # Объем багажника минимальный
+            car.fullWeight = self.Error_handling(data_specifications,
+                                                 ['props', 'initialState', 'catalog', 'modificationCard',
+                                                  'fullWeight'])  # Полная масса
+            car.frontTrackWidth = self.Error_handling(data_specifications,
+                                                      ['props', 'initialState', 'catalog', 'modificationCard',
+                                                       'frontTrackWidth'])  # Ширина передней колеи
+            car.backTrackWidth = self.Error_handling(data_specifications,
+                                                     ['props', 'initialState', 'catalog', 'modificationCard',
+                                                      'backTrackWidth'])  # Ширина задней колеи
 
             # Двигатель
-            try:
-                car.engineType = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'engineType']  # Тип двигателя
-            except Exception:
-                car.engineType = ''
-            try:
-                car.engineCapacity = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'engineCapacity']  # Объем
-            except Exception:
-                car.engineCapacity = ''
-            try:
-                car.enginePower = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'enginePower']  # Мощность
-            except Exception:
-                car.enginePower = ''
-            try:
-                car.maxPowerAtRpm = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'maxPowerAtRpm']  # Обороты максимальной мощности
-            except Exception:
-                car.maxPowerAtRpm = ''
-            try:
-                car.maximumTorque = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'maximumTorque']  # Максимальный крутящий момент
-            except Exception:
-                car.maximumTorque = ''
-            try:
-                car.turnoverOfMaximumTorque = \
-                    data_specifications['props']['initialState']['catalog']['modificationCard'][
-                        'turnoverOfMaximumTorque']  # Обороты максимального крутящего момента
-            except Exception:
-                car.turnoverOfMaximumTorque = ''
-            try:
-                car.injectionType = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'injectionType']  # Тип впуска
-            except Exception:
-                car.injectionType = ''
-            try:
-                car.cylinderLayout = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'cylinderLayout']  # Расположение цилиндров
-            except Exception:
-                car.cylinderLayout = ''
-            try:
-                car.numberOfCylinders = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'numberOfCylinders']  # Кол-во цилиндров
-            except Exception:
-                car.numberOfCylinders = ''
-            try:
-                car.valvesPerCylinder = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'valvesPerCylinder']  # Кол-во клапанов на цилиндр
-            except Exception:
-                car.valvesPerCylinder = ''
-            try:
-                car.compressionRatio = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'compressionRatio']  # Степень сжатия
-            except Exception:
-                car.compressionRatio = ''
-            try:
-                car.boostType = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'boostType']  # Тип наддува
-            except Exception:
-                car.boostType = ''
-            try:
-                car.cylinderBore = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'cylinderBore']  # Диаметр цилиндра
-            except Exception:
-                car.cylinderBore = ''
-            try:
-                car.strokeCycle = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'strokeCycle']  # Ход поршня
-            except Exception:
-                car.strokeCycle = ''
-            try:
-                car.enginePlacement = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'enginePlacement']  # Расположение двигателя
-            except Exception:
-                car.enginePlacement = ''
-            try:
-                car.maxPowerKW = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'maxPowerKW']  # Максимальная мощность
-            except Exception:
-                car.maxPowerKW = ''
+            car.engineType = self.Error_handling(data_specifications,
+                                                 ['props', 'initialState', 'catalog', 'modificationCard',
+                                                  'engineType'])  # Тип двигателя
+            car.engineCapacity = self.Error_handling(data_specifications,
+                                                     ['props', 'initialState', 'catalog', 'modificationCard',
+                                                      'engineCapacity'])  # Объем
+            car.enginePower = self.Error_handling(data_specifications,
+                                                  ['props', 'initialState', 'catalog', 'modificationCard',
+                                                   'enginePower'])  # Мощность
+            car.maxPowerAtRpm = self.Error_handling(data_specifications,
+                                                    ['props', 'initialState', 'catalog', 'modificationCard',
+                                                     'maxPowerAtRpm'])  # Обороты максимальной мощности
+            car.maximumTorque = self.Error_handling(data_specifications,
+                                                    ['props', 'initialState', 'catalog', 'modificationCard',
+                                                     'maximumTorque'])  # Максимальный крутящий момент
+            car.turnoverOfMaximumTorque = self.Error_handling(data_specifications,
+                                                              ['props', 'initialState', 'catalog', 'modificationCard',
+                                                               'turnoverOfMaximumTorque'])  # Обороты максимального крутящего момента
+            car.injectionType = self.Error_handling(data_specifications,
+                                                    ['props', 'initialState', 'catalog', 'modificationCard',
+                                                     'injectionType'])  # Тип впуска
+            car.cylinderLayout = self.Error_handling(data_specifications,
+                                                     ['props', 'initialState', 'catalog', 'modificationCard',
+                                                      'cylinderLayout'])  # Расположение цилиндров
+            car.numberOfCylinders = self.Error_handling(data_specifications,
+                                                        ['props', 'initialState', 'catalog', 'modificationCard',
+                                                         'numberOfCylinders'])  # Кол-во цилиндров
+            car.valvesPerCylinder = self.Error_handling(data_specifications,
+                                                        ['props', 'initialState', 'catalog', 'modificationCard',
+                                                         'valvesPerCylinder'])  # Кол-во клапанов на цилиндр
+            car.compressionRatio = self.Error_handling(data_specifications,
+                                                       ['props', 'initialState', 'catalog', 'modificationCard',
+                                                        'compressionRatio'])  # Степень сжатия
+            car.boostType = self.Error_handling(data_specifications,
+                                                ['props', 'initialState', 'catalog', 'modificationCard',
+                                                 'boostType'])  # Тип наддува
+            car.cylinderBore = self.Error_handling(data_specifications,
+                                                   ['props', 'initialState', 'catalog', 'modificationCard',
+                                                    'cylinderBore'])  # Диаметр цилиндра
+            car.strokeCycle = self.Error_handling(data_specifications,
+                                                  ['props', 'initialState', 'catalog', 'modificationCard',
+                                                   'strokeCycle'])  # Ход поршня
+            car.enginePlacement = self.Error_handling(data_specifications,
+                                                      ['props', 'initialState', 'catalog', 'modificationCard',
+                                                       'enginePlacement'])  # Расположение двигателя
+            car.maxPowerKW = self.Error_handling(data_specifications,
+                                                 ['props', 'initialState', 'catalog', 'modificationCard',
+                                                  'maxPowerKW'])  # Максимальная мощность
 
             # Общая информация
-            try:
-                car.countryBrandItem = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'countryBrandItem']  # Страна марки
-            except Exception:
-                car.countryBrandItem = ''
-            try:
-                car.numberOfDoors = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'numberOfDoors']  # Количество дверей
-            except Exception:
-                car.numberOfDoors = ''
-            try:
-                car.carClass = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'carClass']  # Класс автомобиля
-            except Exception:
-                car.carClass = ''
+            car.countryBrandItem = self.Error_handling(data_specifications,
+                                                       ['props', 'initialState', 'catalog', 'modificationCard',
+                                                        'countryBrandItem'])  # Страна марки
+            car.numberOfDoors = self.Error_handling(data_specifications,
+                                                    ['props', 'initialState', 'catalog', 'modificationCard',
+                                                     'numberOfDoors'])  # Количество дверей
+            car.carClass = self.Error_handling(data_specifications,
+                                               ['props', 'initialState', 'catalog', 'modificationCard',
+                                                'carClass'])  # Класс автомобиля
 
             # Аккумуляторная батарея
-            try:
-                car.batteryCapacity = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'batteryCapacity']  # Емкость батареи
-            except Exception:
-                car.batteryCapacity = ''
+            car.batteryCapacity = self.Error_handling(data_specifications,
+                                                      ['props', 'initialState', 'catalog', 'modificationCard',
+                                                       'batteryCapacity'])  # Емкость батареи
 
             # Трансмиссия и управление
-            try:
-                car.gearBoxType = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'gearBoxType']  # Тип КПП
-            except Exception:
-                car.gearBoxType = ''
-            try:
-                car.numberOfGear = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'numberOfGear']  # Количество передач
-            except Exception:
-                car.numberOfGear = ''
-            try:
-                car.driveType = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'driveType']  # Привод
-            except Exception:
-                car.driveType = ''
+            car.gearBoxType = self.Error_handling(data_specifications,
+                                                  ['props', 'initialState', 'catalog', 'modificationCard',
+                                                   'gearBoxType'])  # Тип КПП
+            car.numberOfGear = self.Error_handling(data_specifications,
+                                                   ['props', 'initialState', 'catalog', 'modificationCard',
+                                                    'numberOfGear'])  # Количество передач
+            car.driveType = self.Error_handling(data_specifications,
+                                                ['props', 'initialState', 'catalog', 'modificationCard',
+                                                 'driveType'])  # Привод
 
             # Эксплуатационные показатели
-            try:
-                car.fuel = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'fuel']  # Марка топлива
-            except Exception:
-                car.fuel = ''
-            try:
-                car.maxSpeed = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'maxSpeed']  # Максимальная скорость
-            except Exception:
-                car.maxSpeed = ''
-            try:
-                car.acceleration0100KmH = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'acceleration0100KmH']  # Разгон до 100 км/ч
-            except Exception:
-                car.acceleration0100KmH = ''
-            try:
-                car.fuelTankCapacity = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'fuelTankCapacity']  # Объем топливного бака
-            except Exception:
-                car.fuelTankCapacity = ''
-            try:
-                car.emissionStandards = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'emissionStandards']  # Экологический стандарт
-            except Exception:
-                car.emissionStandards = ''
-            try:
-                car.cityDrivingFuelConsumptionPer100Km = \
-                    data_specifications['props']['initialState']['catalog']['modificationCard'][
-                        'cityDrivingFuelConsumptionPer100Km']  # Расход топлива в городе на 100км
-            except Exception:
-                car.cityDrivingFuelConsumptionPer100Km = ''
-            try:
-                car.highwayDrivingFuelConsumptionPer100Km = \
-                    data_specifications['props']['initialState']['catalog']['modificationCard'][
-                        'highwayDrivingFuelConsumptionPer100Km']  # Расход топлива на шоссе на 100км
-            except Exception:
-                car.highwayDrivingFuelConsumptionPer100Km = ''
-            try:
-                car.mixedDrivingFuelConsumptionPer100Km = \
-                    data_specifications['props']['initialState']['catalog']['modificationCard'][
-                        'mixedDrivingFuelConsumptionPer100Km']  # Расход топлива в смешанном цикле на 100км
-            except Exception:
-                car.mixedDrivingFuelConsumptionPer100Km = ''
-            try:
-                car.co2Emissions = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'co2Emissions']  # Выброс СО2
-            except Exception:
-                car.co2Emissions = ''
+            car.fuel = self.Error_handling(data_specifications, ['props', 'initialState', 'catalog', 'modificationCard',
+                                                                 'fuel'])  # Марка топлива
+            car.maxSpeed = self.Error_handling(data_specifications,
+                                               ['props', 'initialState', 'catalog', 'modificationCard',
+                                                'maxSpeed'])  # Максимальная скорость
+            car.acceleration0100KmH = self.Error_handling(data_specifications,
+                                                          ['props', 'initialState', 'catalog', 'modificationCard',
+                                                           'acceleration0100KmH'])  # Разгон до 100 км/ч
+            car.fuelTankCapacity = self.Error_handling(data_specifications,
+                                                       ['props', 'initialState', 'catalog', 'modificationCard',
+                                                        'fuelTankCapacity'])  # Объем топливного бака
+            car.emissionStandards = self.Error_handling(data_specifications,
+                                                        ['props', 'initialState', 'catalog', 'modificationCard',
+                                                         'emissionStandards'])  # Экологический стандарт
+            car.cityDrivingFuelConsumptionPer100Km = self.Error_handling(data_specifications,
+                                                                         ['props', 'initialState', 'catalog',
+                                                                          'modificationCard',
+                                                                          'cityDrivingFuelConsumptionPer100Km'])  # Расход топлива в городе на 100км
+            car.highwayDrivingFuelConsumptionPer100Km = self.Error_handling(data_specifications,
+                                                                            ['props', 'initialState', 'catalog',
+                                                                             'modificationCard',
+                                                                             'highwayDrivingFuelConsumptionPer100Km'])  # Расход топлива на шоссе на 100км
+            car.mixedDrivingFuelConsumptionPer100Km = self.Error_handling(data_specifications,
+                                                                          ['props', 'initialState', 'catalog',
+                                                                           'modificationCard',
+                                                                           'mixedDrivingFuelConsumptionPer100Km'])  # Расход топлива в смешанном цикле на 100км
+            car.co2Emissions = self.Error_handling(data_specifications,
+                                                   ['props', 'initialState', 'catalog', 'modificationCard',
+                                                    'co2Emissions'])  # Выброс СО2
 
             # Подвеска и тормоза
-            try:
-                car.frontSuspension = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'frontSuspension']  # Передняя подвеска
-            except Exception:
-                car.frontSuspension = ''
-            try:
-                car.backSuspension = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'backSuspension']  # Задняя подвеска
-            except Exception:
-                car.backSuspension = ''
-            try:
-                car.frontBrakes = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'frontBrakes']  # Передние тормоза
-            except Exception:
-                car.frontBrakes = ''
-            try:
-                car.rearBrakes = data_specifications['props']['initialState']['catalog']['modificationCard'][
-                    'rearBrakes']  # Задние тормоза
-            except Exception:
-                car.rearBrakes = ''
+            car.frontSuspension = self.Error_handling(data_specifications,
+                                                      ['props', 'initialState', 'catalog', 'modificationCard',
+                                                       'frontSuspension'])  # Передняя подвеска
+            car.backSuspension = self.Error_handling(data_specifications,
+                                                     ['props', 'initialState', 'catalog', 'modificationCard',
+                                                      'backSuspension'])  # Задняя подвеска
+            car.frontBrakes = self.Error_handling(data_specifications,
+                                                  ['props', 'initialState', 'catalog', 'modificationCard',
+                                                   'frontBrakes'])  # Передние тормоза
+            car.rearBrakes = self.Error_handling(data_specifications,
+                                                 ['props', 'initialState', 'catalog', 'modificationCard',
+                                                  'rearBrakes'])  # Задние тормоза
+
         except Exception:
             car.url_specifications = 'None_spec'
 
         return car
+
+    # def __get_data(self, link: str) -> Car_data:
+    #     # print('\n', link)
+    #     data = ''
+    #     at = 1
+    #     while at <= 3:
+    #         try:
+    #             data = self.get_json(self.get_soup(link))
+    #             break
+    #         except Exception as e:
+    #             print(str(e))
+    #             at += 1
+    #
+    #     car = Car_data(link)
+    #
+    #     # Общее
+    #     car.car_id = data['props']['initialState']['advert']['advert']['id']  # id лота
+    #     car.brand = [el['value'] for el in data['props']['initialState']['advert']['advert']['properties'] if
+    #                  el['name'] == 'brand'][0]  # Марка автомобиля
+    #     car.model = [el['value'] for el in data['props']['initialState']['advert']['advert']['properties'] if
+    #                  el['name'] == 'model'][0]  # Модель автомобиля
+    #     try:
+    #         car.model_2 = [el['value'] for el in data['props']['initialState']['advert']['advert']['properties'] if
+    #                        el['name'] == 'generation'][0]  # Модельный ряд
+    #     except Exception:
+    #         car.model_2 = ''
+    #     try:
+    #         car.mileage = [el['value'] for el in data['props']['initialState']['advert']['advert']['properties'] if
+    #                        el['name'] == 'mileage_km'][0]  # Пробег автомобиля
+    #     except Exception:
+    #         car.mileage = -1
+    #     try:
+    #         car.year = data['props']['initialState']['advert']['advert']['year']  # Год выпуска
+    #     except Exception:
+    #         car.year = -1
+    #     try:
+    #         car.location = data['props']['initialState']['advert']['advert']['locationName']  # Местоположение
+    #     except Exception:
+    #         car.location = ''
+    #     try:
+    #         car.title = data['props']['initialState']['landing']['seo']['metaInfo']['h1']  # Наименование лота
+    #     except Exception:
+    #         car.title = ''
+    #     try:
+    #         car.description = data['props']['initialState']['landing']['seo']['metaInfo'][
+    #             'ogDescription']  # Описание лота
+    #     except Exception:
+    #         car.description = ''
+    #     car.price_byn = data['props']['initialState']['advert']['advert']['price']['byn']['amount']  # Стоимость руб
+    #     try:
+    #         car.price_usd = data['props']['initialState']['advert']['advert']['price']['usd']['amount']  # Стоимость usd
+    #     except Exception:
+    #         car.price_usd = 0
+    #     try:
+    #         car.sellername = data['props']['initialState']['advert']['advert']['sellerName']  # Имя продавца
+    #     except Exception:
+    #         car.sellername = ''
+    #     car.exchange = data['props']['initialState']['advert']['advert']['exchange'][
+    #         'label']  # Намерия продавца по обмену
+    #     car.publishedAt = data['props']['initialState']['advert']['advert']['publishedAt']  # Дата публикации
+    #     car.refreshedAt = data['props']['initialState']['advert']['advert']['refreshedAt']  # Дата обновления
+    #     try:
+    #         car.vin = data['props']['initialState']['advert']['advert']['metadata']['vinInfo'][
+    #             'vin']  # VIN номер автомобиля
+    #     except Exception:
+    #         car.vin = ''
+    #     car.photo = [el['medium']['url'] for el in
+    #                  data['props']['initialState']['advert']['advert']['photos']]  # Список ссылок на фотографии лота
+    #
+    #     # Технические характеристики
+    #     try:
+    #         car.url_specifications = data['props']['initialState']['catalog']['advertModifications'][
+    #             'url']  # Ссылка на технические характеристики
+    #         print(car.url_specifications)
+    #         soup_specifications = self.get_soup(car.url_specifications)
+    #         json_data_specifications = soup_specifications.find('script', id='__NEXT_DATA__').text
+    #         data_specifications = json.loads(json_data_specifications)
+    #
+    #         # Габариты
+    #         try:
+    #             car.length = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'length']  # Длина
+    #         except Exception:
+    #             car.length = ''
+    #         try:
+    #             car.width = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'width']  # Ширина
+    #         except Exception:
+    #             car.width = ''
+    #         try:
+    #             car.height = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'height']  # Высота
+    #         except Exception:
+    #             car.height = ''
+    #
+    #         # Кузов
+    #         try:
+    #             car.bodyType = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'bodyType']  # Тип кузова
+    #         except Exception:
+    #             car.bodyType = ''
+    #         try:
+    #             car.numberOfSeats = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'numberOfSeats']  # Количество мест
+    #         except Exception:
+    #             car.numberOfSeats = ''
+    #         try:
+    #             car.wheelbase = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'wheelbase']  # Колесная база
+    #         except Exception:
+    #             car.wheelbase = ''
+    #         try:
+    #             car.curbWeight = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'curbWeight']  # Снаряженная масса
+    #         except Exception:
+    #             car.curbWeight = ''
+    #         try:
+    #             car.groundClearance = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'groundClearance']  # Дорожный просвет
+    #         except Exception:
+    #             car.groundClearance = ''
+    #         try:
+    #             car.maxTrunkCapacity = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'maxTrunkCapacity']  # Объем багажника максимальный
+    #         except Exception:
+    #             car.maxTrunkCapacity = ''
+    #         try:
+    #             car.minTrunkCapacity = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'minTrunkCapacity']  # Объем багажника минимальный
+    #         except Exception:
+    #             car.minTrunkCapacity = ''
+    #         try:
+    #             car.fullWeight = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'fullWeight']  # Полная масса
+    #         except Exception:
+    #             car.fullWeight = ''
+    #         try:
+    #             car.frontTrackWidth = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'frontTrackWidth']  # Ширина передней колеи
+    #         except Exception:
+    #             car.frontTrackWidth = ''
+    #         try:
+    #             car.backTrackWidth = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'backTrackWidth']  # Ширина задней колеи
+    #         except Exception:
+    #             car.backTrackWidth = ''
+    #
+    #         # Двигатель
+    #         try:
+    #             car.engineType = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'engineType']  # Тип двигателя
+    #         except Exception:
+    #             car.engineType = ''
+    #         try:
+    #             car.engineCapacity = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'engineCapacity']  # Объем
+    #         except Exception:
+    #             car.engineCapacity = ''
+    #         try:
+    #             car.enginePower = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'enginePower']  # Мощность
+    #         except Exception:
+    #             car.enginePower = ''
+    #         try:
+    #             car.maxPowerAtRpm = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'maxPowerAtRpm']  # Обороты максимальной мощности
+    #         except Exception:
+    #             car.maxPowerAtRpm = ''
+    #         try:
+    #             car.maximumTorque = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'maximumTorque']  # Максимальный крутящий момент
+    #         except Exception:
+    #             car.maximumTorque = ''
+    #         try:
+    #             car.turnoverOfMaximumTorque = \
+    #                 data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                     'turnoverOfMaximumTorque']  # Обороты максимального крутящего момента
+    #         except Exception:
+    #             car.turnoverOfMaximumTorque = ''
+    #         try:
+    #             car.injectionType = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'injectionType']  # Тип впуска
+    #         except Exception:
+    #             car.injectionType = ''
+    #         try:
+    #             car.cylinderLayout = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'cylinderLayout']  # Расположение цилиндров
+    #         except Exception:
+    #             car.cylinderLayout = ''
+    #         try:
+    #             car.numberOfCylinders = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'numberOfCylinders']  # Кол-во цилиндров
+    #         except Exception:
+    #             car.numberOfCylinders = ''
+    #         try:
+    #             car.valvesPerCylinder = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'valvesPerCylinder']  # Кол-во клапанов на цилиндр
+    #         except Exception:
+    #             car.valvesPerCylinder = ''
+    #         try:
+    #             car.compressionRatio = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'compressionRatio']  # Степень сжатия
+    #         except Exception:
+    #             car.compressionRatio = ''
+    #         try:
+    #             car.boostType = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'boostType']  # Тип наддува
+    #         except Exception:
+    #             car.boostType = ''
+    #         try:
+    #             car.cylinderBore = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'cylinderBore']  # Диаметр цилиндра
+    #         except Exception:
+    #             car.cylinderBore = ''
+    #         try:
+    #             car.strokeCycle = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'strokeCycle']  # Ход поршня
+    #         except Exception:
+    #             car.strokeCycle = ''
+    #         try:
+    #             car.enginePlacement = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'enginePlacement']  # Расположение двигателя
+    #         except Exception:
+    #             car.enginePlacement = ''
+    #         try:
+    #             car.maxPowerKW = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'maxPowerKW']  # Максимальная мощность
+    #         except Exception:
+    #             car.maxPowerKW = ''
+    #
+    #         # Общая информация
+    #         try:
+    #             car.countryBrandItem = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'countryBrandItem']  # Страна марки
+    #         except Exception:
+    #             car.countryBrandItem = ''
+    #         try:
+    #             car.numberOfDoors = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'numberOfDoors']  # Количество дверей
+    #         except Exception:
+    #             car.numberOfDoors = ''
+    #         try:
+    #             car.carClass = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'carClass']  # Класс автомобиля
+    #         except Exception:
+    #             car.carClass = ''
+    #
+    #         # Аккумуляторная батарея
+    #         try:
+    #             car.batteryCapacity = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'batteryCapacity']  # Емкость батареи
+    #         except Exception:
+    #             car.batteryCapacity = ''
+    #
+    #         # Трансмиссия и управление
+    #         try:
+    #             car.gearBoxType = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'gearBoxType']  # Тип КПП
+    #         except Exception:
+    #             car.gearBoxType = ''
+    #         try:
+    #             car.numberOfGear = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'numberOfGear']  # Количество передач
+    #         except Exception:
+    #             car.numberOfGear = ''
+    #         try:
+    #             car.driveType = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'driveType']  # Привод
+    #         except Exception:
+    #             car.driveType = ''
+    #
+    #         # Эксплуатационные показатели
+    #         try:
+    #             car.fuel = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'fuel']  # Марка топлива
+    #         except Exception:
+    #             car.fuel = ''
+    #         try:
+    #             car.maxSpeed = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'maxSpeed']  # Максимальная скорость
+    #         except Exception:
+    #             car.maxSpeed = ''
+    #         try:
+    #             car.acceleration0100KmH = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'acceleration0100KmH']  # Разгон до 100 км/ч
+    #         except Exception:
+    #             car.acceleration0100KmH = ''
+    #         try:
+    #             car.fuelTankCapacity = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'fuelTankCapacity']  # Объем топливного бака
+    #         except Exception:
+    #             car.fuelTankCapacity = ''
+    #         try:
+    #             car.emissionStandards = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'emissionStandards']  # Экологический стандарт
+    #         except Exception:
+    #             car.emissionStandards = ''
+    #         try:
+    #             car.cityDrivingFuelConsumptionPer100Km = \
+    #                 data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                     'cityDrivingFuelConsumptionPer100Km']  # Расход топлива в городе на 100км
+    #         except Exception:
+    #             car.cityDrivingFuelConsumptionPer100Km = ''
+    #         try:
+    #             car.highwayDrivingFuelConsumptionPer100Km = \
+    #                 data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                     'highwayDrivingFuelConsumptionPer100Km']  # Расход топлива на шоссе на 100км
+    #         except Exception:
+    #             car.highwayDrivingFuelConsumptionPer100Km = ''
+    #         try:
+    #             car.mixedDrivingFuelConsumptionPer100Km = \
+    #                 data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                     'mixedDrivingFuelConsumptionPer100Km']  # Расход топлива в смешанном цикле на 100км
+    #         except Exception:
+    #             car.mixedDrivingFuelConsumptionPer100Km = ''
+    #         try:
+    #             car.co2Emissions = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'co2Emissions']  # Выброс СО2
+    #         except Exception:
+    #             car.co2Emissions = ''
+    #
+    #         # Подвеска и тормоза
+    #         try:
+    #             car.frontSuspension = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'frontSuspension']  # Передняя подвеска
+    #         except Exception:
+    #             car.frontSuspension = ''
+    #         try:
+    #             car.backSuspension = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'backSuspension']  # Задняя подвеска
+    #         except Exception:
+    #             car.backSuspension = ''
+    #         try:
+    #             car.frontBrakes = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'frontBrakes']  # Передние тормоза
+    #         except Exception:
+    #             car.frontBrakes = ''
+    #         try:
+    #             car.rearBrakes = data_specifications['props']['initialState']['catalog']['modificationCard'][
+    #                 'rearBrakes']  # Задние тормоза
+    #         except Exception:
+    #             car.rearBrakes = ''
+    #     except Exception:
+    #         car.url_specifications = 'None_spec'
+    #
+    #     return car
 
     def runner(self, start_url: str):
         """
@@ -573,6 +824,10 @@ class Parser_car:
                 except Exception:
                     continue
 
+    def runner2(self, url):
+        pprint(self.__get_data(url))
+
 
 car = Parser_car()
-car.runner('https://av.by/')
+# car.runner('https://av.by/')
+
